@@ -1,8 +1,11 @@
 # 利用clawcloud容器实现docker自动执行telegram bot特殊签到指令
 
-## 准备工作
-
-第一次使用请先运行以下代码获取到chat_name_session来获取登录的信息以便于后期不用人工手机验证登录
+## 准备工作：
+1. 首先在 https://my.telegram.org/ 中获取api和hash，并将代码中的信息替换为你自己的 API和hash
+2. 将以下代码在本地跑通，进行验证(输入手机号和验证码)，获取chat_name.session（自动生成在你的文件夹下），上传chat_name.session到github中。
+3. 首次使用需要将代码打包下载下来后输入手机号和验证码（code）获取账号相关session值自动保存在本地文件夹，记得加上手机区号，如+86
+4. 请将仓库设置为private，确保你的私有密钥不会公开
+5. 给本项目点个Star，支持下本项目
 
 ```python
 from telethon import TelegramClient, events
@@ -39,7 +42,7 @@ if __name__ == '__main__':
 
 然后将你生成的session拉入仓库中替换掉原有的session，然后执行以下步骤创建一个github action来制作容器的镜像文件，并根据以下步骤将其上传到clawcloud容器中
 
-## 流程概述
+## 打包为可执行容器镜像流程概述
 
 GitHub Actions → 构建 Docker 镜像 → 推送到 GHCR（GitHub 自己的容器仓库）→ clawcloud 拉取 GHCR 的私有镜像 → 部署运行。
 
@@ -153,5 +156,6 @@ GitHub 主页 → 点击顶部Your profile → 左侧Packages → 能看到teleg
    - 看到启动Telegram自动脚本 | checkin每日0:01 | upgrade每71小时 → 启动成功。
    - 首次运行会立即执行/checkin和/upgrade（upgrade 首次计时是 71 小时前）。
    - 后续每天北京时间 0:01 自动执行/checkin，每 71 小时执行一次/upgrade。
-     <img width="802" height="358" alt="image" src="https://github.com/user-attachments/assets/56514cbf-d926-4914-86d2-1aa04afc9d37" />
+     <img width="1033" height="445" alt="image" src="https://github.com/user-attachments/assets/cb0c7236-b8b1-4849-8d66-7396e5102ce5" />
+
 
