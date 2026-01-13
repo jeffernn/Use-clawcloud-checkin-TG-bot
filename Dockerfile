@@ -2,6 +2,7 @@
 FROM python:3.9-slim
 
 # Set Beijing timezone (Asia/Shanghai)
+# area time :shanghai
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' > /etc/timezone
 
 # Environment variables for Clawcloud log collection
@@ -11,7 +12,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8
 
 # Install required Python packages
-RUN pip install --no-cache-dir telethon pytz
+RUN pip install --no-cache-dir telethon
+
+# root
+RUN mkdir -p /app && chmod 777 /app
 
 # Set working directory
 WORKDIR /app
@@ -20,6 +24,5 @@ WORKDIR /app
 COPY checkin.py .
 COPY chat_name.session .
 
-# Run script with unbuffered mode (JSON format to fix Docker warnings)
-# -u parameter: Double guarantee for unbuffered output
+# Run script with unbuffered mode
 CMD ["python", "-u", "checkin.py"]
