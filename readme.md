@@ -155,7 +155,7 @@ GitHub 主页 → 点击顶部Your profile → 左侧Packages → 能看到teleg
 2. 查看容器日志：
    - 看到启动Telegram自动脚本 | checkin每日0:01 | upgrade每71小时 → 启动成功。
    - 首次运行会立即执行/checkin和/upgrade（upgrade 首次计时是 71 小时前）。
-   - 后续每天北京时间 0:01 自动执行/checkin，每 71 小时执行一次/upgrade。
+   - 后续每24小时自动执行/checkin，每 71 小时执行一次/upgrade。
      <img width="1033" height="445" alt="image" src="https://github.com/user-attachments/assets/cb0c7236-b8b1-4849-8d66-7396e5102ce5" />
 
 
