@@ -19,9 +19,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ========== 固定配置 ==========
-API_ID = 你申请的API_ID
-API_HASH = '你申请的API_HASH'
-CHANNEL_ID = '@你需要发送指令的机器人ID'
+API_ID = 24191107
+API_HASH = 'f08f30015647d9d1af0ac9941d4dfbff'
+CHANNEL_ID = '@GetfreeCloud_Bot'
 SESSION_PATH = '/app/chat_name.session'
 
 # ========== 间隔配置 ==========
@@ -71,7 +71,7 @@ async def send_upgrade():
 
 
 def get_start_base_time():
-    """获取脚本首次运行的基准时间（核心：所有计时基于此时间）"""
+    """获取脚本首次运行的基准时间（仅用于首次执行的兜底）"""
     try:
         with open(START_BASE_TIME_FILE, 'r') as f:
             timestamp = float(f.read().strip())
@@ -111,41 +111,39 @@ def get_last_exec_time(record_file, interval_hours, base_time):
         return base_time
 
 
-def calculate_next_exec_seconds(base_time, last_exec_time, interval_hours):
-    """计算距离下次执行的休眠秒数（基于基准时间的固定间隔）"""
+def calculate_next_exec_seconds(last_exec_time, interval_hours):
+    """
+    修复核心：基于上次执行时间计算下次执行时间（不再依赖基准时间的总小时数）
+    返回值：距离下次执行的休眠秒数（最小为0，立即执行）
+    """
     now = datetime.now()
-    # 计算从基准时间到现在的总小时数
-    total_hours_since_base = (now - base_time).total_seconds() / 3600
-    # 计算该指令应执行的次数：总小时数 / 间隔小时数（向上取整）
-    exec_count = int(total_hours_since_base // interval_hours) + 1
-    # 下次执行时间 = 基准时间 + 执行次数 * 间隔小时数
-    next_exec_time = base_time + timedelta(hours=exec_count * interval_hours)
+    # 核心修复：下次执行时间 = 上次执行时间 + 固定间隔
+    next_exec_time = last_exec_time + timedelta(hours=interval_hours)
     
-    # 容错：如果上次执行时间晚于计算出的下次执行时间（如程序重启），重新计算
-    if last_exec_time > next_exec_time:
-        last_exec_hours = (last_exec_time - base_time).total_seconds() / 3600
-        exec_count = int(last_exec_hours // interval_hours) + 1
-        next_exec_time = base_time + timedelta(hours=exec_count * interval_hours)
+    # 如果下次执行时间已过（如程序重启、时间偏差），立即执行
+    if next_exec_time <= now:
+        logger.info(f"检测到执行时间已过，将立即执行（上次执行：{last_exec_time.strftime('%Y-%m-%d %H:%M:%S')}，当前时间：{now.strftime('%Y-%m-%d %H:%M:%S')}）")
+        return 0
     
-    # 计算休眠秒数（最小为0，立即执行）
-    sleep_seconds = max(0, (next_exec_time - now).total_seconds())
+    # 计算正常休眠秒数
+    sleep_seconds = (next_exec_time - now).total_seconds()
     logger.info(f"距离下次执行（间隔{interval_hours}H）还有 {sleep_seconds/3600:.2f} 小时，目标时间: {next_exec_time.strftime('%Y-%m-%d %H:%M:%S')}")
     return sleep_seconds
 
 
 async def main():
-    """主循环：基于首次运行时间的固定间隔执行"""
-    logger.info(f"启动Telegram自动脚本 | checkin每{CHECKIN_INTERVAL_HOURS}H | upgrade每{UPGRADE_INTERVAL_HOURS}H（计时基于脚本首次运行时间）")
+    """主循环：基于上次执行时间的固定间隔执行（修复核心）"""
+    logger.info(f"启动Telegram自动脚本 | checkin每{CHECKIN_INTERVAL_HOURS}H | upgrade每{UPGRADE_INTERVAL_HOURS}H（计时基于上次执行时间）")
     
     # 检查核心文件
     if not os.path.exists(SESSION_PATH):
         logger.error(f"Session文件不存在: {SESSION_PATH}，请确认文件已挂载到容器")
         raise FileNotFoundError(f"Missing session file: {SESSION_PATH}")
 
-    # 获取基准时间（脚本首次运行时间）
+    # 获取基准时间（仅用于首次执行兜底）
     base_time = get_start_base_time()
 
-    # ========== 新增：首次运行立即执行两条指令 ==========
+    # ========== 首次运行立即执行两条指令 ==========
     is_first_run = not (os.path.exists(CHECKIN_RECORD_FILE) and os.path.exists(UPGRADE_RECORD_FILE))
     if is_first_run:
         logger.info("检测到首次运行，立即发送checkin和upgrade指令")
@@ -161,28 +159,31 @@ async def main():
         try:
             # ========== 处理checkin指令 ==========
             last_checkin = get_last_exec_time(CHECKIN_RECORD_FILE, CHECKIN_INTERVAL_HOURS, base_time)
-            checkin_sleep = calculate_next_exec_seconds(base_time, last_checkin, CHECKIN_INTERVAL_HOURS)
+            checkin_sleep = calculate_next_exec_seconds(last_checkin, CHECKIN_INTERVAL_HOURS)
             
             # ========== 处理upgrade指令 ==========
             last_upgrade = get_last_exec_time(UPGRADE_RECORD_FILE, UPGRADE_INTERVAL_HOURS, base_time)
-            upgrade_sleep = calculate_next_exec_seconds(base_time, last_upgrade, UPGRADE_INTERVAL_HOURS)
+            upgrade_sleep = calculate_next_exec_seconds(last_upgrade, UPGRADE_INTERVAL_HOURS)
             
-            # ========== 休眠到最近的任务执行时间 ==========
+            # ========== 休眠到最近的任务执行时间（修复：直接休眠总秒数，避免分小时累计误差） ==========
             next_sleep = min(checkin_sleep, upgrade_sleep)
-            # 每小时打印心跳（监控用）
-            for _ in range(int(next_sleep) // 3600):
-                await asyncio.sleep(3600)
-                logger.info("程序运行中，等待下次任务执行...")
-            # 休眠剩余不足1小时的部分
-            await asyncio.sleep(next_sleep % 3600)
+            # 每30分钟打印心跳（监控用，减少累计误差）
+            remaining = next_sleep
+            while remaining > 0:
+                # 每次休眠最多30分钟，既保证心跳输出，又避免大段休眠的时间误差
+                sleep_chunk = min(1800, remaining)
+                await asyncio.sleep(sleep_chunk)
+                remaining -= sleep_chunk
+                if remaining > 0:
+                    logger.info(f"程序运行中，距离下次任务执行还有 {remaining/3600:.2f} 小时...")
             
-            # ========== 执行到期的任务 ==========
+            # ========== 执行到期的任务（修复判断逻辑） ==========
             now = datetime.now()
-            # 检查checkin是否到期
-            if (now - last_checkin).total_seconds() >= CHECKIN_INTERVAL_HOURS * 3600:
+            # 检查checkin是否到期（下次执行时间<=当前时间）
+            if (last_checkin + timedelta(hours=CHECKIN_INTERVAL_HOURS)) <= now:
                 await send_checkin()
             # 检查upgrade是否到期
-            if (now - last_upgrade).total_seconds() >= UPGRADE_INTERVAL_HOURS * 3600:
+            if (last_upgrade + timedelta(hours=UPGRADE_INTERVAL_HOURS)) <= now:
                 await send_upgrade()
 
         except Exception as e:
