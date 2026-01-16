@@ -5,7 +5,8 @@
 2. 将以下代码在本地跑通，进行验证(输入手机号和验证码)，获取chat_name.session（自动生成在你的文件夹下），上传chat_name.session到github中。
 3. 首次使用需要将代码打包下载下来后输入手机号和验证码（code）获取账号相关session值自动保存在本地文件夹，记得加上手机区号，如+86
 4. 请将仓库设置为private，确保你的私有密钥不会公开
-5. 给本项目点个Star，支持下本项目
+5. 注意相关参数修改请打开.py文件，里面已有相关注释
+6. 给本项目点个Star，支持下本项目
 
 ```python
 from telethon import TelegramClient, events
@@ -40,7 +41,7 @@ if __name__ == '__main__':
         print('finished')
 ```
 
-然后将你生成的session拉入仓库中替换掉原有的session，然后执行以下步骤创建一个github action来制作容器的镜像文件，并根据以下步骤将其上传到clawcloud容器中
+然后将你生成的session拉入仓库中，然后执行以下步骤创建一个github action来制作容器的镜像文件，并根据以下步骤将其上传到clawcloud容器中
 
 ## 打包为可执行容器镜像流程概述
 
